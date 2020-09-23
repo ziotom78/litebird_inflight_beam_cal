@@ -1,0 +1,33 @@
+[simulation]
+base_path = "./planck-jupiter-044GHz"
+start_time = 2027-01-01T00:00:00
+duration_s = "1095 days" # 3 years
+num_of_obs_per_detector = 10950
+
+[scanning_strategy]
+spin_sun_angle_deg = 5
+spin_boresight_angle_deg = 85
+precession_period_min = 43800 # One month
+spin_rate_rpm = 1
+
+[planet_scanning]
+spin2ecl_delta_time_s = 5.0
+planet_name = "jupiter"
+output_table_file_name = "observation_time_table.txt"
+output_map_file_name = "map.fits.gz"
+output_nside = 512
+sampling_rate_hz = 1.0
+
+[[detectors]]
+# Parameters taken from Planck 2018 II, table 1 (pag. 3)
+name = "planck44GHz"
+channel = "44 GHz"
+fwhm_arcmin = 26.99
+fknee_mhz = 53.0
+bandwidth_ghz = 10.72
+bandcenter_ghz = 44.1
+
+# The number in the table is 174.0, but we're interested in the white
+# noise for *one* RCA, which means we must multiply by √3, as there
+# are 3 beams @ 44 GHz
+net_ukrts = 301.3     
