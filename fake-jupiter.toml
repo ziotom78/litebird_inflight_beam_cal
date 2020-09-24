@@ -1,0 +1,20 @@
+[simulation]
+base_path = "./fake-jupiter-44GHz"
+start_time = 2027-01-01T00:00:00
+duration_s = "1460 days" # 4 years
+num_of_obs_per_detector = 14600
+
+[scanning_strategy]
+spin_sun_angle_deg = 0
+precession_period_min = 1e15 # No precession
+spin_rate_rpm = 0.01
+spin_boresight_angle_deg = 0.0
+
+[planet_scanning]
+spin2ecl_delta_time_s = 300.0
+planet_name = "jupiter"
+output_table_file_name = "observation_time_table.txt"
+output_map_file_name = "map.fits.gz"
+output_nside = 512
+detector_obj = "/releases/v1.0/satellite/LFT/L1-040/L00_003_QA_040T/info"
+sampling_rate_hz = 1.0

@@ -1,0 +1,20 @@
+[simulation]
+base_path = "./planck-jupiter-100GHz"
+num_of_mc_runs = 500
+
+[planet]
+planet_name = "jupiter"
+sed_file_name = "jupiter_sed_ghz_k.csv"
+planet_radius_m = 7.1492e7
+scanning_simulation = "./planck-scanning-strategy"
+
+[detector]
+# Parameters taken from Planck 2016 VII, table 3 (pag. 12) and table 5
+# (pag. 17), as well as Planck 2011 IV, table 1
+name = "planck100GHz"
+channel = "100 GHz"
+fwhm_arcmin = 9.67
+bandwidth_ghz = 33.0
+bandcenter_ghz = 100.0
+sampling_rate_hz = 1.0
+net_ukrts = 113.3
