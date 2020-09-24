@@ -84,7 +84,7 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
 
 def beamfunc(pixel_theta, fwhm_arcmin, amplitude=1.0):
     return amplitude * np.exp(
-        -4 * np.log(2) * (pixel_theta ** 2) / (np.deg2rad(fwhm_arcmin / 60.0) ** 2)
+        -np.log(2) * ((pixel_theta / np.deg2rad(fwhm_arcmin / 60.0)) ** 2)
     )
 
 
