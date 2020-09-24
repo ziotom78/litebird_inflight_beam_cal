@@ -10,3 +10,4 @@ scanning_simulation = "./litebird-scanning-strategy"
 
 [detector]
 channel_obj = "/releases/v1.0/satellite/LFT/L1-040/channel_info"
+sampling_rate_hz = 1.0
