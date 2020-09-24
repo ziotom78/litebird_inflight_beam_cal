@@ -1,0 +1,24 @@
+[simulation]
+base_path = "./planck-jupiter-030GHz"
+num_of_mc_runs = 500
+
+[planet]
+planet_name = "jupiter"
+sed_file_name = "jupiter_sed_ghz_k.csv"
+planet_radius_m = 7.1492e7
+scanning_simulation = "./planck-scanning-strategy"
+
+[detector]
+# Parameters taken from Planck 2018 II, table 1 (pag. 3)
+name = "planck30GHz"
+channel = "30 GHz"
+fwhm_arcmin = 33.10
+fknee_mhz = 113.9
+bandwidth_ghz = 9.89
+bandcenter_ghz = 28.4
+sampling_rate_hz = 1.0
+
+# The number in the table is 147.9, but we're interested in the white
+# noise for *one* RCA, which means we must multiply by √2, as there
+# are 2 beams @ 30 GHz
+net_ukrts = 209.2
