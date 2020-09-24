@@ -1,0 +1,15 @@
+[simulation]
+base_path = "./litebird-scanning-strategy"
+start_time = 2027-01-01T00:00:00
+duration_s = "3 years"
+num_of_obs_per_detector = 10950
+
+[scanning_strategy]
+scanning_strategy_obj = "/releases/v1.0/satellite/scanning_parameters"
+spin_boresight_angle_deg = 50.0
+
+[planet_scanning]
+spin2ecl_delta_time_s = 60.0
+planet_name = "jupiter"
+output_nside = 1024
+sampling_rate_hz = 1.0

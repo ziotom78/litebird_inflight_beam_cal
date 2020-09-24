@@ -1,0 +1,17 @@
+[simulation]
+base_path = "./planck-scanning-strategy"
+start_time = 2009-08-15T00:00:00
+duration_s = "4 years"
+num_of_obs_per_detector = 5840
+
+[scanning_strategy]
+spin_sun_angle_deg = 5
+spin_boresight_angle_deg = 85
+precession_period_min = 43800 # One month
+spin_rate_rpm = 1
+
+[planet_scanning]
+spin2ecl_delta_time_s = 5.0
+planet_name = "jupiter"
+output_nside = 1024
+sampling_rate_hz = 1.0
