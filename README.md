@@ -18,3 +18,8 @@ of examples. If you want to run the examples simulating LiteBIRD, you
 must first set up the IMO; if you're a member of the LiteBIRD
 collaboration, contact the [LiteBIRD Simulation
 Team](mailto:litebird_pipe@db.ipmu.jp) for details.
+
+Both scripts produce a Markdown/HTML report, similar to this:
+
+![](inflight-beam-sample-report.png)
+
