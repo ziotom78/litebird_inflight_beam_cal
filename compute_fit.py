@@ -112,7 +112,9 @@ def project_map_north_pole(pixels, width_deg, pixels_per_side=150):
     )
 
 
-def create_uv_plot(fig, ax, pixels, width_deg, contour_lines=True, smooth=False):
+def create_uv_plot(
+    fig, ax, pixels, width_deg, contour_lines=True, smooth=False, fwhm_arcmin=None
+):
     from scipy.ndimage.filters import gaussian_filter
 
     u_grid, v_grid, grid = project_map_north_pole(pixels, width_deg)
@@ -121,6 +123,20 @@ def create_uv_plot(fig, ax, pixels, width_deg, contour_lines=True, smooth=False)
         grid = gaussian_filter(grid, 0.7)
 
     cs = ax.contourf(u_grid, v_grid, grid, cmap=plt.cm.bone)
+
+    if fwhm_arcmin:
+        from matplotlib.patches import Circle
+
+        ax.add_artist(
+            Circle(
+                (0, 0),
+                np.sin(np.deg2rad(fwhm_arcmin / 60.0)),
+                edgecolor="w",
+                lw=5,
+                facecolor="none",
+                alpha=0.25,
+            )
+        )
 
     if contour_lines:
         cs2 = ax.contour(cs, levels=cs.levels[::2], colors="r")
@@ -140,7 +156,9 @@ def create_gamma_plots(gamma_map, gamma_error_map, fwhm_arcmin):
     plot_size_deg = 2 * fwhm_arcmin / 60.0
 
     gamma_fig, gamma_ax = plt.subplots()
-    create_uv_plot(gamma_fig, gamma_ax, gamma_map, width_deg=plot_size_deg)
+    create_uv_plot(
+        gamma_fig, gamma_ax, gamma_map, width_deg=plot_size_deg, fwhm_arcmin=None
+    )
 
     gamma_error_fig, gamma_error_ax = plt.subplots()
     create_uv_plot(
@@ -149,6 +167,7 @@ def create_gamma_plots(gamma_map, gamma_error_map, fwhm_arcmin):
         gamma_error_map,
         width_deg=plot_size_deg,
         contour_lines=False,
+        fwhm_arcmin=fwhm_arcmin,
     )
 
     gamma_over_error_fig, gamma_over_error_ax = plt.subplots()
@@ -158,6 +177,7 @@ def create_gamma_plots(gamma_map, gamma_error_map, fwhm_arcmin):
         gamma_map / gamma_error_map,
         width_deg=plot_size_deg,
         smooth=True,
+        fwhm_arcmin=fwhm_arcmin,
     )
 
     return (plot_size_deg, gamma_fig, gamma_error_fig, gamma_over_error_fig)
@@ -306,8 +326,11 @@ The ratio $`\gamma / \delta\gamma`$ represents the S/N ratio:
 
 ![](gamma_over_error.svg)
 
-The size of each plot is {{ "%.1f"|format(plot_size_deg) }}°.
+The size of each plot is {{ "%.1f"|format(plot_size_deg) }}°, and the
+white shadow represents the size of the FWHM
+({{ "%.1f"|format(fwhm_arcmin) }} arcmin).
 """,
+        fwhm_arcmin=params.detector.fwhm_arcmin,
         plot_size_deg=plot_size_deg,
         figures=[
             (gamma_fig, "gamma.svg"),
