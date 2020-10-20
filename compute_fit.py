@@ -30,6 +30,7 @@ class Parameters:
     scanning_simulation: Path
     detector: lbs.DetectorInfo
     num_of_mc_runs: int
+    error_amplitude_map_file_name: str
 
     def __post_init__(self):
         self.sed_file_name = Path(self.sed_file_name)
@@ -79,6 +80,9 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         scanning_simulation=sim.parameters["planet"]["scanning_simulation"],
         detector=read_detector(sim.parameters["detector"], sim.imo),
         num_of_mc_runs=sim.parameters["simulation"].get("num_of_mc_runs", 20),
+        error_amplitude_map_file_name=sim.parameters["simulation"].get(
+            "error_amplitude_map_file_name", "error_map.fits"
+        ),
     )
 
 
@@ -90,6 +94,73 @@ def beamfunc(pixel_theta, fwhm_arcmin, amplitude=1.0):
 
 def calc_beam_solid_angle(fwhm_arcmin):
     return integrate.quad(lambda θ: np.sin(θ) * beamfunc(θ, fwhm_arcmin), 0, np.pi)[0]
+
+
+def project_map_north_pole(pixels, width_deg, pixels_per_side=150):
+    theta_max = np.deg2rad(width_deg)
+    u = np.linspace(-np.sin(theta_max), +np.sin(theta_max), pixels_per_side)
+    v = np.linspace(-np.sin(theta_max), +np.sin(theta_max), pixels_per_side)
+    u_grid, v_grid = np.meshgrid(u, v)
+    theta_grid = np.arcsin(np.sqrt(u_grid ** 2 + v_grid ** 2))
+    phi_grid = np.arctan2(v_grid, u_grid)
+    return (
+        u_grid,
+        v_grid,
+        healpy.get_interp_val(pixels, theta_grid.flatten(), phi_grid.flatten()).reshape(
+            pixels_per_side, -1
+        ),
+    )
+
+
+def create_uv_plot(fig, ax, pixels, width_deg, contour_lines=True, smooth=False):
+    from scipy.ndimage.filters import gaussian_filter
+
+    u_grid, v_grid, grid = project_map_north_pole(pixels, width_deg)
+
+    if smooth:
+        grid = gaussian_filter(grid, 0.7)
+
+    cs = ax.contourf(u_grid, v_grid, grid, cmap=plt.cm.bone)
+
+    if contour_lines:
+        cs2 = ax.contour(cs, levels=cs.levels[::2], colors="r")
+        ax.clabel(cs2)
+
+    ax.set_xlabel("U coordinate")
+    ax.set_ylabel("V coordinate")
+    ax.set_aspect("equal")
+
+    cbar = fig.colorbar(cs)
+
+    if contour_lines:
+        cbar.add_lines(cs2)
+
+
+def create_gamma_plots(gamma_map, gamma_error_map, fwhm_arcmin):
+    plot_size_deg = 2 * fwhm_arcmin / 60.0
+
+    gamma_fig, gamma_ax = plt.subplots()
+    create_uv_plot(gamma_fig, gamma_ax, gamma_map, width_deg=plot_size_deg)
+
+    gamma_error_fig, gamma_error_ax = plt.subplots()
+    create_uv_plot(
+        gamma_error_fig,
+        gamma_error_ax,
+        gamma_error_map,
+        width_deg=plot_size_deg,
+        contour_lines=False,
+    )
+
+    gamma_over_error_fig, gamma_over_error_ax = plt.subplots()
+    create_uv_plot(
+        gamma_over_error_fig,
+        gamma_over_error_ax,
+        gamma_map / gamma_error_map,
+        width_deg=plot_size_deg,
+        smooth=True,
+    )
+
+    return (plot_size_deg, gamma_fig, gamma_error_fig, gamma_over_error_fig)
 
 
 def main(data_path: Path):
@@ -142,7 +213,7 @@ noise/optical properties of a detector.
     assert hit_map[mask].size > 0, "no data available for the fit"
 
     sim.append_to_report(
-        """
+        r"""
 
 ## Detector properties
 
@@ -189,6 +260,72 @@ Integration time | {{ integration_time_s }} s
             * np.sqrt(sampling_time_s)
         )
     ) * dist_map_m2
+
+    (
+        plot_size_deg,
+        gamma_fig,
+        gamma_error_fig,
+        gamma_over_error_fig,
+    ) = create_gamma_plots(
+        gamma_map, error_amplitude_map, fwhm_arcmin=params.detector.fwhm_arcmin,
+    )
+
+    sim.append_to_report(
+        r"""
+## Error on beam estimation
+
+This is a representation of the model of the main beam used in the
+simulation, in $`(u,v)`$ coordinates, where
+$`u = \sin\theta\,\cos\phi`$ and
+$`v = \sin\theta\sin\phi`$:
+
+![](gamma.svg)
+
+Here is the result of the estimate of $`\delta\gamma`$, using
+the following formula:
+
+```math
+\delta\gamma(\vec r) = 
+    \frac{\Omega_b \cdot \text{WN}}{\pi r_\text{pl}^2\,T_\text{br,pl}\,\sqrt\tau} 
+    \sqrt{\frac1{\sum_{i=1}^N \left(\frac1{4\pi d_\text{pl}^2(t_i)}\right)^2}},
+```
+
+where $`N`$ is the number of samples observed along direction $`\vec
+r`$, WN is the white noise level expressed as
+$`\text{K}\cdot\sqrt{s}`$, $`r_\text{pl}`$ is the planet's radius,
+$`d_\text{pl}(t)`$ is the planet-spacecraft distance at time $`t`$,
+and $`\tau`$ is the sample integration time (assumed equal for all the
+samples).
+
+And here is a plot of $`\delta\gamma`$, again in $`(u, v)`$
+coordinates:
+
+![](gamma_error.svg)
+
+The ratio $`\gamma / \delta\gamma`$ represents the S/N ratio:
+
+![](gamma_over_error.svg)
+
+The size of each plot is {{ "%.1f"|format(plot_size_deg) }}°.
+""",
+        plot_size_deg=plot_size_deg,
+        figures=[
+            (gamma_fig, "gamma.svg"),
+            (gamma_error_fig, "gamma_error.svg"),
+            (gamma_over_error_fig, "gamma_over_error.svg"),
+        ],
+    )
+
+    destfile = sim.base_path / params.error_amplitude_map_file_name
+    healpy.write_map(
+        destfile,
+        [gamma_map, error_amplitude_map],
+        coord="DETECTOR",
+        column_names=["GAMMA", "ERR"],
+        column_units=["", ""],
+        dtype=[np.float32, np.float32, np.float32],
+        overwrite=True,
+    )
 
     fwhm_estimates_arcmin = np.empty(params.num_of_mc_runs)
     ampl_estimates = np.empty(len(fwhm_estimates_arcmin))
