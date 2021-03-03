@@ -5,8 +5,8 @@ duration_s = "1 hour"
 num_of_obs_per_detector = 60
 
 [scanning_strategy]
-spin_sun_angle_deg = 5
-spin_boresight_angle_deg = 85
+spin_sun_angle_rad = 0.08726646259971647
+spin_boresight_angle_rad = 1.4835298641951802
 precession_period_min = 43800 # One month
 spin_rate_rpm = 1
 

@@ -5,10 +5,10 @@ duration_s = "1460 days" # 4 years
 num_of_obs_per_detector = 14600
 
 [scanning_strategy]
-spin_sun_angle_deg = 0
+spin_sun_angle_rad = 0
 precession_period_min = 1e15 # No precession
 spin_rate_rpm = 0.01
-spin_boresight_angle_deg = 0.0
+spin_boresight_angle_rad = 0.0
 
 [planet_scanning]
 spin2ecl_delta_time_s = 300.0
