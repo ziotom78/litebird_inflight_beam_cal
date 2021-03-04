@@ -33,7 +33,7 @@ import matplotlib.pylab as plt
 
 @dataclass
 class Parameters:
-    spin_boresight_angle_deg: float
+    spin_boresight_angle_rad: float
     planet_name: str
     spin2ecl_delta_time_s: float
     detector_sampling_rate_hz: float
@@ -47,8 +47,8 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
     planet_params = sim.parameters["planet_scanning"]
 
     return Parameters(
-        spin_boresight_angle_deg=sim.parameters["scanning_strategy"][
-            "spin_boresight_angle_deg"
+        spin_boresight_angle_rad=sim.parameters["scanning_strategy"][
+            "spin_boresight_angle_rad"
         ],
         planet_name=planet_params["planet_name"],
         spin2ecl_delta_time_s=planet_params["spin2ecl_delta_time_s"],
@@ -84,14 +84,14 @@ def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time)
         )
     else:
         sstr = lbs.SpinningScanningStrategy(
-            spin_sun_angle_deg=0.0,
+            spin_sun_angle_rad=0.0,
             precession_period_min=0.0,
             spin_rate_rpm=1.0,
             start_time=start_time,
         )
 
-    if "spin_sun_angle_deg" in parameters:
-        sstr.spin_sun_angle_rad = np.deg2rad(parameters["spin_sun_angle_deg"])
+    if "spin_sun_angle_rad" in parameters:
+        sstr.spin_sun_angle_rad = np.deg2rad(parameters["spin_sun_angle_rad"])
 
     if "precession_period_min" in parameters:
         sstr.precession_rate_hz = 1.0 / (60.0 * parameters["precession_period_min"])
@@ -126,12 +126,13 @@ of the sky, particularly with respect to the observation of planets.
         sim.parameters["scanning_strategy"], sim.imo, sim.start_time
     )
     sim.generate_spin2ecl_quaternions(
-        scanning_strategy=scanning_strategy, delta_time_s=params.spin2ecl_delta_time_s,
+        scanning_strategy=scanning_strategy,
+        delta_time_s=params.spin2ecl_delta_time_s,
     )
 
     log.info("Creating the observations")
     instr = lbs.Instrument(
-        name="instrum", spin_boresight_angle_deg=params.spin_boresight_angle_deg
+        name="instrum", spin_boresight_angle_rad=params.spin_boresight_angle_rad
     )
     detector = lbs.DetectorInfo(sampling_rate_hz=params.detector_sampling_rate_hz)
     sim.create_observations(
@@ -248,7 +249,7 @@ of the sky, particularly with respect to the observation of planets.
 Parameter | Value
 --------- | --------------
 Angle between the spin axis and the Sun-Earth axis | {{ sun_earth_angle_deg }} deg
-Angle between the spin axis and the boresight | {{ params.spin_boresight_angle_deg }} deg
+Angle between the spin axis and the boresight | {{ spin_boresight_angle_deg }} deg
 Precession period | {{ precession_period_min }} min
 Spin period | {{ spin_period_min }} min
 
@@ -275,7 +276,7 @@ Angular radius [deg] | Time spent [s]
             radius_vs_time_s=list(zip(params.radii_deg, obs_time_per_radius_s)),
             delta_time_s=1.0 / params.detector_sampling_rate_hz,
             sun_earth_angle_deg=np.rad2deg(scanning_strategy.spin_sun_angle_rad),
-            bore_spin_angle_deg=params.spin_boresight_angle_deg,
+            spin_boresight_angle_deg=np.rad2deg(params.spin_boresight_angle_deg),
             precession_period_min=1.0 / (60.0 * scanning_strategy.precession_rate_hz),
             spin_period_min=1.0 / (60.0 * scanning_strategy.spin_rate_hz),
             det=detector,
