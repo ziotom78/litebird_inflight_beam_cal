@@ -85,8 +85,8 @@ def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time)
     else:
         sstr = lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=0.0,
-            precession_period_min=0.0,
-            spin_rate_rpm=1.0,
+            precession_rate_hz=0.0,
+            spin_rate_hz=1.0 / 60,
             start_time=start_time,
         )
 
