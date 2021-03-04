@@ -276,7 +276,7 @@ Angular radius [deg] | Time spent [s]
             radius_vs_time_s=list(zip(params.radii_deg, obs_time_per_radius_s)),
             delta_time_s=1.0 / params.detector_sampling_rate_hz,
             sun_earth_angle_deg=np.rad2deg(scanning_strategy.spin_sun_angle_rad),
-            spin_boresight_angle_deg=np.rad2deg(params.spin_boresight_angle_deg),
+            spin_boresight_angle_deg=np.rad2deg(params.spin_boresight_angle_rad),
             precession_period_min=1.0 / (60.0 * scanning_strategy.precession_rate_hz),
             spin_period_min=1.0 / (60.0 * scanning_strategy.spin_rate_hz),
             det=detector,
