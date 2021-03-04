@@ -131,7 +131,7 @@ of the sky, particularly with respect to the observation of planets.
     )
 
     log.info("Creating the observations")
-    instr = lbs.Instrument(
+    instr = lbs.InstrumentInfo(
         name="instrum", spin_boresight_angle_rad=params.spin_boresight_angle_rad
     )
     detector = lbs.DetectorInfo(sampling_rate_hz=params.detector_sampling_rate_hz)
