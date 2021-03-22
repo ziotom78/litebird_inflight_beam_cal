@@ -30,6 +30,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pylab as plt
 
+EARTH_L2_DISTANCE_KM = 1_496_509.305_22
+
 
 @dataclass
 class Parameters:
@@ -38,6 +40,7 @@ class Parameters:
     spin2ecl_delta_time_s: float
     detector_sampling_rate_hz: float
     radii_deg: List[float]
+    earth_L2_distance_km: float = EARTH_L2_DISTANCE_KM
     output_nside: int = 1024
     output_map_file_name: str = "map.fits.gz"
     output_table_file_name: str = "observation_time_table.txt"
@@ -45,9 +48,10 @@ class Parameters:
 
 def load_parameters(sim: lbs.Simulation) -> Parameters:
     planet_params = sim.parameters["planet_scanning"]
+    scanning_params = sim.parameters["scanning_strategy"]
 
     return Parameters(
-        spin_boresight_angle_rad=sim.parameters["scanning_strategy"][
+        spin_boresight_angle_rad=scanning_params[
             "spin_boresight_angle_rad"
         ],
         planet_name=planet_params["planet_name"],
@@ -56,10 +60,22 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         radii_deg=planet_params.get(
             "radii_deg", [0.1, 0.2, 0.5, 1, 5, 10, 20, 40, 60, 90, 135, 180]
         ),
+        earth_L2_distance_km=scanning_params.get(
+            "earth_L2_distance_km", EARTH_L2_DISTANCE_KM),
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
     )
+
+
+def norm(vec):
+    "Return the norm of a vector"
+    return np.sqrt(vec.dot(vec))
+
+
+def get_ecliptic_vec(vec):
+    "Convert a coordinate in a XYZ vector expressed in the Ecliptic rest frame"
+    return ICRS(vec).transform_to(BarycentricMeanEcliptic).cartesian.get_xyz()
 
 
 def time_per_radius(time_map_s, angular_radius_rad):
@@ -77,7 +93,6 @@ def time_per_radius(time_map_s, angular_radius_rad):
 
 
 def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time):
-
     if "scanning_strategy_obj" in parameters:
         sstr = lbs.SpinningScanningStrategy.from_imo(
             imo, parameters["scanning_strategy_obj"]
@@ -94,7 +109,11 @@ def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time)
         sstr.spin_sun_angle_rad = np.deg2rad(parameters["spin_sun_angle_rad"])
 
     if "precession_period_min" in parameters:
-        sstr.precession_rate_hz = 1.0 / (60.0 * parameters["precession_period_min"])
+        precession_period_min = parameters["precession_period_min"]
+        if precession_period_min != 0:
+            sstr.precession_rate_hz = 1.0 / (60.0 * parameters["precession_period_min"])
+        else:
+            sstr.precession_rate_hz = 0.0
 
     if "spin_rate_rpm" in parameters:
         sstr.spin_rate_hz = parameters["spin_rate_rpm"] / 60.0
@@ -162,21 +181,18 @@ of the sky, particularly with respect to the observation of planets.
         # significantly. (In Ecliptic coordinates, Jupiter moves by
         # fractions of an arcmin over a time span of one hour)
         time0 = times[0]
-        icrs_pos = get_body_barycentric(params.planet_name, time0)
-        earth_pos = get_body_barycentric("earth", time0)
+        icrs_pos = get_ecliptic_vec(get_body_barycentric(params.planet_name, time0))
+        sat_pos = get_ecliptic_vec(get_body_barycentric("earth", time0))
+
+        # Move the spacecraft to L2
+        sat_pos = sat_pos * (1.0 + params.earth_L2_distance_km / norm(sat_pos).to("km").value)
 
         # Compute the distance between the Earth and the planet
-        distance_m = (earth_pos - icrs_pos).norm().to("m").value
+        distance_m = norm(sat_pos - icrs_pos).to("m").value
 
-        # Convert the ICRS r.f. into the barycentric mean Ecliptic r.f.,
-        # which is the reference frame used by the LiteBIRD simulation
-        # framework
-        ecl_vec = (
-            ICRS(icrs_pos)
-            .transform_to(BarycentricMeanEcliptic)
-            .cartesian.get_xyz()
-            .value
-        )
+        # This is the direction of the solar system body with respect to the
+        # spacecraft, in Ecliptic coordinates
+        ecl_vec = (icrs_pos - sat_pos).value
 
         # The variable ecl_vec is a 3-element vector. We normalize it so
         # that it has length one (using the L_2 norm, hence ord=2)
@@ -241,6 +257,16 @@ of the sky, particularly with respect to the observation of planets.
         # the sphere (in the reference frame of the detector)
         healpy.orthview(time_map_s, title="Time spent observing the source")
 
+        if scanning_strategy.spin_rate_hz != 0:
+            spin_period_min = 1.0 / (60.0 * scanning_strategy.spin_rate_hz)
+        else:
+            spin_period_min = 0.0
+
+        if scanning_strategy.precession_rate_hz != 0:
+            precession_period_min = 1.0 / (60.0 * scanning_strategy.precession_rate_hz)
+        else:
+            precession_period_min = 0.0
+
         sim.append_to_report(
             """
 
@@ -277,8 +303,8 @@ Angular radius [deg] | Time spent [s]
             delta_time_s=1.0 / params.detector_sampling_rate_hz,
             sun_earth_angle_deg=np.rad2deg(scanning_strategy.spin_sun_angle_rad),
             spin_boresight_angle_deg=np.rad2deg(params.spin_boresight_angle_rad),
-            precession_period_min=1.0 / (60.0 * scanning_strategy.precession_rate_hz),
-            spin_period_min=1.0 / (60.0 * scanning_strategy.spin_rate_hz),
+            precession_period_min=precession_period_min,
+            spin_period_min=spin_period_min,
             det=detector,
         )
 
