@@ -12,7 +12,7 @@ import json
 import logging as log
 import sys
 from typing import Dict, Any, List
-
+import astropy.units
 import numpy as np
 from tqdm import tqdm
 import litebird_sim as lbs
@@ -30,7 +30,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pylab as plt
 
-EARTH_L2_DISTANCE_KM = 1_496_509.305_22
+EARTH_L2_DISTANCE_KM = 1_496_509.30522
 
 
 @dataclass
@@ -51,9 +51,7 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
     scanning_params = sim.parameters["scanning_strategy"]
 
     return Parameters(
-        spin_boresight_angle_rad=scanning_params[
-            "spin_boresight_angle_rad"
-        ],
+        spin_boresight_angle_rad=scanning_params["spin_boresight_angle_rad"],
         planet_name=planet_params["planet_name"],
         spin2ecl_delta_time_s=planet_params["spin2ecl_delta_time_s"],
         detector_sampling_rate_hz=planet_params["sampling_rate_hz"],
@@ -61,7 +59,8 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
             "radii_deg", [0.1, 0.2, 0.5, 1, 5, 10, 20, 40, 60, 90, 135, 180]
         ),
         earth_L2_distance_km=scanning_params.get(
-            "earth_L2_distance_km", EARTH_L2_DISTANCE_KM),
+            "earth_L2_distance_km", EARTH_L2_DISTANCE_KM
+        ),
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
@@ -106,7 +105,7 @@ def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time)
         )
 
     if "spin_sun_angle_rad" in parameters:
-        sstr.spin_sun_angle_rad = np.deg2rad(parameters["spin_sun_angle_rad"])
+        sstr.spin_sun_angle_rad = parameters["spin_sun_angle_rad"]
 
     if "precession_period_min" in parameters:
         precession_period_min = parameters["precession_period_min"]
@@ -145,8 +144,7 @@ of the sky, particularly with respect to the observation of planets.
         sim.parameters["scanning_strategy"], sim.imo, sim.start_time
     )
     sim.generate_spin2ecl_quaternions(
-        scanning_strategy=scanning_strategy,
-        delta_time_s=params.spin2ecl_delta_time_s,
+        scanning_strategy=scanning_strategy, delta_time_s=params.spin2ecl_delta_time_s
     )
 
     log.info("Creating the observations")
@@ -154,9 +152,34 @@ of the sky, particularly with respect to the observation of planets.
         name="instrum", spin_boresight_angle_rad=params.spin_boresight_angle_rad
     )
     detector = lbs.DetectorInfo(sampling_rate_hz=params.detector_sampling_rate_hz)
+
+    conversions = [
+        ("years", astropy.units.year),
+        ("year", astropy.units.year),
+        ("days", astropy.units.day),
+        ("day", astropy.units.day),
+        ("hours", astropy.units.hour),
+        ("hour", astropy.units.hour),
+        ("minutes", astropy.units.minute),
+        ("min", astropy.units.minute),
+        ("sec", astropy.units.second),
+        ("s", astropy.units.second),
+    ]
+    sim_params = sim.parameters["simulation"]
+    durations = ["duration_s", "duration_of_obs_s"]
+    for dur in durations:
+        if isinstance(sim_params[dur], str):
+            for conv_str, conv_unit in conversions:
+                if sim_params[dur].endswith(" " + conv_str):
+                    value = float(sim_params[dur].replace(conv_str, ""))
+                    sim_params[dur] = (value * conv_unit).to("s").value
+                    break
+
     sim.create_observations(
         detectors=[detector],
-        num_of_obs_per_detector=sim.parameters["simulation"]["num_of_obs_per_detector"],
+        num_of_obs_per_detector=int(
+            sim_params["duration_s"] / sim_params["duration_of_obs_s"]
+        ),
     )
 
     #################################################################
@@ -185,7 +208,9 @@ of the sky, particularly with respect to the observation of planets.
         sat_pos = get_ecliptic_vec(get_body_barycentric("earth", time0))
 
         # Move the spacecraft to L2
-        sat_pos = sat_pos * (1.0 + params.earth_L2_distance_km / norm(sat_pos).to("km").value)
+        sat_pos = sat_pos * (
+            1.0 + params.earth_L2_distance_km / norm(sat_pos).to("km").value
+        )
 
         # Compute the distance between the Earth and the planet
         distance_m = norm(sat_pos - icrs_pos).to("m").value
