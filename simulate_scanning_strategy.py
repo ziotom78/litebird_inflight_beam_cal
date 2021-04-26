@@ -40,11 +40,12 @@ class Parameters:
     spin2ecl_delta_time_s: float
     detector_sampling_rate_hz: float
     radii_deg: List[float]
+    radius: float
+    L2_orbital_velocity_rad_s: float
     earth_L2_distance_km: float = EARTH_L2_DISTANCE_KM
     output_nside: int = 1024
     output_map_file_name: str = "map.fits.gz"
     output_table_file_name: str = "observation_time_table.txt"
-
 
 def load_parameters(sim: lbs.Simulation) -> Parameters:
     planet_params = sim.parameters["planet_scanning"]
@@ -64,7 +65,9 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
-    )
+        radius = scanning_params["radius"],
+        L2_orbital_velocity_rad_s = scanning_params["L2_orbital_velocity_rad_s"]
+        )
 
 
 def norm(vec):
@@ -222,9 +225,8 @@ of the sky, particularly with respect to the observation of planets.
         )
 
         # Creating a circular orbit
-        scann = sim.parameters["scanning_strategy"]
-        R = conversion(scann["radius"], "au")
-        phi_t = scann["angular_velocity_rad"] * t
+        R = conversion(params.radius, "au")
+        phi_t = params.L2_orbital_velocity_rad_s * t
         orbit_pos = np.array(
             [
                 -R * np.sin(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi_t),
