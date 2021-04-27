@@ -40,6 +40,8 @@ class Parameters:
     spin2ecl_delta_time_s: float
     detector_sampling_rate_hz: float
     radii_deg: List[float]
+    radius_au: float
+    L2_orbital_velocity_rad_s: float
     earth_L2_distance_km: float = EARTH_L2_DISTANCE_KM
     output_nside: int = 1024
     output_map_file_name: str = "map.fits.gz"
@@ -64,6 +66,8 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
+        radius_au=scanning_params.get("radius_au", 0.0),
+        L2_orbital_velocity_rad_s=scanning_params.get("L2_orbital_velocity_rad_s", 0.0),
     )
 
 
@@ -164,17 +168,28 @@ of the sky, particularly with respect to the observation of planets.
         ("min", astropy.units.minute),
         ("sec", astropy.units.second),
         ("s", astropy.units.second),
+        ("km", astropy.units.kilometer),
+        ("Km", astropy.units.kilometer),
+        ("au", astropy.units.au),
+        ("AU", astropy.units.au),
     ]
+
+    def conversion(x, new_unit):
+        if isinstance(x, str):
+            for conv_str, conv_unit in conversions:
+                if x.endswith(" " + conv_str):
+                    value = float(x.replace(conv_str, ""))
+                    return (value * conv_unit).to(new_unit).value
+                    break
+        else:
+            return float(x)
+
     sim_params = sim.parameters["simulation"]
     durations = ["duration_s", "duration_of_obs_s"]
     for dur in durations:
-        if isinstance(sim_params[dur], str):
-            for conv_str, conv_unit in conversions:
-                if sim_params[dur].endswith(" " + conv_str):
-                    value = float(sim_params[dur].replace(conv_str, ""))
-                    sim_params[dur] = (value * conv_unit).to("s").value
-                    break
+        sim_params[dur] = conversion(sim_params[dur], "s")
 
+    delta_t_s = sim_params["duration_of_obs_s"]
     sim.create_observations(
         detectors=[detector],
         num_of_obs_per_detector=int(
@@ -194,6 +209,8 @@ of the sky, particularly with respect to the observation of planets.
     if lbs.MPI_ENABLED and lbs.MPI_COMM_WORLD.rank != 0:
         iterator = lambda x: x
 
+    # Time variable inizialized at the beginning of the simulation
+    t = 0.0
     for obs in iterator(sim.observations):
         solar_system_ephemeris.set("builtin")
 
@@ -205,18 +222,33 @@ of the sky, particularly with respect to the observation of planets.
         # fractions of an arcmin over a time span of one hour)
         time0 = times[0]
         icrs_pos = get_ecliptic_vec(get_body_barycentric(params.planet_name, time0))
-        sat_pos = get_ecliptic_vec(get_body_barycentric("earth", time0))
+        earth_pos = get_ecliptic_vec(get_body_barycentric("earth", time0))
 
         # Move the spacecraft to L2
-        sat_pos = sat_pos * (
-            1.0 + params.earth_L2_distance_km / norm(sat_pos).to("km").value
+        L2_pos = earth_pos * (
+            1.0 + params.earth_L2_distance_km / norm(earth_pos).to("km").value
         )
 
-        # Compute the distance between the Earth and the planet
+        # Creating a circular orbit
+        R = conversion(params.radius_au, "au")
+        phi_t = params.L2_orbital_velocity_rad_s * t
+        orbit_pos = np.array(
+            [
+                -R * np.sin(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi_t),
+                R * np.cos(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi_t),
+                R * np.sin(phi_t),
+            ]
+        )
+        orbit_pos = astropy.units.Quantity(orbit_pos, unit="AU")
+
+        # Move the spacecraft to a circular orbit around L2
+        sat_pos = orbit_pos + L2_pos
+
+        # Compute the distance between the spacecraft and the planet
         distance_m = norm(sat_pos - icrs_pos).to("m").value
 
-        # This is the direction of the solar system body with respect to the
-        # spacecraft, in Ecliptic coordinates
+        # This is the direction of the solar system body with respect
+        # to the spacecraft, in Ecliptic coordinates
         ecl_vec = (icrs_pos - sat_pos).value
 
         # The variable ecl_vec is a 3-element vector. We normalize it so
@@ -224,7 +256,7 @@ of the sky, particularly with respect to the observation of planets.
         ecl_vec /= np.linalg.norm(ecl_vec, axis=0, ord=2)
 
         # Convert the matrix to a N×3 shape by repeating the vector:
-        # planets move slowly, so we assume that Jupiter stays fixed
+        # planets move slowly, so we assume that the planet stays fixed
         # during this observation.
         ecl_vec = np.repeat(ecl_vec.reshape(1, 3), len(times), axis=0)
 
@@ -256,6 +288,9 @@ of the sky, particularly with respect to the observation of planets.
         pixidx = healpy.ang2pix(params.output_nside, pointings[:, 0], pointings[:, 1])
         bincount = np.bincount(pixidx, minlength=len(sky_hitmap))
         sky_hitmap += bincount
+
+        # updating the time variable
+        t += delta_t_s
 
     if lbs.MPI_ENABLED:
         sky_hitmap = lbs.MPI_COMM_WORLD.allreduce(sky_hitmap)
