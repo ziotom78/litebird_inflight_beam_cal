@@ -66,8 +66,8 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
-        radius_au=scanning_params["radius_au"],
-        L2_orbital_velocity_rad_s=scanning_params["L2_orbital_velocity_rad_s"],
+        radius_au=scanning_params.get("radius_au", 0.0),
+        L2_orbital_velocity_rad_s=scanning_params.get("L2_orbital_velocity_rad_s", 0.0),
     )
 
 
