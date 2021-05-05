@@ -230,7 +230,8 @@ of the sky, particularly with respect to the observation of planets.
 
         # Calculate the quaternions that convert the Ecliptic
         # reference system into the detector's reference system
-        quats = obs.get_ecl2det_quaternions(
+        quats = lbs.get_ecl2det_quaternions(
+            obs,
             sim.spin2ecliptic_quats,
             detector_quats=[detector.quat],
             bore2spin_quat=instr.bore2spin_quat,
@@ -249,8 +250,8 @@ of the sky, particularly with respect to the observation of planets.
         detector_hitmap += bincount
         dist_map_m2 += bincount / ((4 * np.pi * (distance_m ** 2)) ** 2)
 
-        pointings = obs.get_pointings(
-            sim.spin2ecliptic_quats, [detector.quat], instr.bore2spin_quat
+        pointings = lbs.get_pointings(
+            obs, sim.spin2ecliptic_quats, [detector.quat], instr.bore2spin_quat
         )[0]
 
         pixidx = healpy.ang2pix(params.output_nside, pointings[:, 0], pointings[:, 1])
