@@ -9,9 +9,8 @@ The code runs using Python 3.7+ and the
 
 You must run the code in two steps:
 
-1. Simulate the scanning strategy (long!) using
-   `simulate_scanning_strategy.py`;
-2. Run the Monte Carlo simulation (short) using `compute_fit.py`.
+1. Simulate the scanning strategy (long!) using `simulate_scanning_strategy.py`;
+2. Run the Monte Carlo simulation (short) using `symmetric_gaussian_beam_fit.py`.
 
 Both scripts need a TOML file as input; the repository contains a set
 of examples. If you want to run the examples simulating LiteBIRD, you
