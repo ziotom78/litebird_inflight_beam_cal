@@ -93,7 +93,10 @@ def beamfunc(pixel_theta, fwhm_arcmin, amplitude=1.0):
 
 
 def calc_beam_solid_angle(fwhm_arcmin):
-    return integrate.quad(lambda θ: np.sin(θ) * beamfunc(θ, fwhm_arcmin), 0, np.pi)[0]
+    π = np.pi
+    return (
+        2 * π * integrate.quad(lambda θ: np.sin(θ) * beamfunc(θ, fwhm_arcmin), 0, π)[0]
+    )
 
 
 def project_map_north_pole(pixels, width_deg, pixels_per_side=150):
@@ -200,7 +203,8 @@ noise/optical properties of a detector.
 
     # TODO: This should be done by the framework
     copyfile(
-        src=params.sed_file_name, dst=sim.base_path / params.sed_file_name.name,
+        src=params.sed_file_name,
+        dst=sim.base_path / params.sed_file_name.name,
     )
 
     # Calculate the brightness temperature of the planet over the band
@@ -252,7 +256,7 @@ Beam solid angle | {{beam_solid_angle}} sterad
 Parameter | Value
 --------- | ----------------
 Brightness temperature | {{ "%.1f"|format(planet_temperature_k) }} K
-Effective radius | {{ "%.0e"|format(params.planet_radius_m) }} m
+Effective radius | {{ "%.3e"|format(params.planet_radius_m) }} m
 
 ## Beam scanning
 
@@ -287,7 +291,9 @@ Integration time | {{ integration_time_s }} s
         gamma_error_fig,
         gamma_over_error_fig,
     ) = create_gamma_plots(
-        gamma_map, error_amplitude_map, fwhm_arcmin=params.detector.fwhm_arcmin,
+        gamma_map,
+        error_amplitude_map,
+        fwhm_arcmin=params.detector.fwhm_arcmin,
     )
 
     sim.append_to_report(
