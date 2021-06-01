@@ -40,8 +40,9 @@ class Parameters:
     spin2ecl_delta_time_s: float
     detector_sampling_rate_hz: float
     radii_deg: List[float]
-    radius_au: float
-    L2_orbital_velocity_rad_s: float
+    radius_au: List[float]
+    L2_orbital_velocity_rad_s: List[float]
+    phase_rad: float
     earth_L2_distance_km: float = EARTH_L2_DISTANCE_KM
     output_nside: int = 1024
     output_map_file_name: str = "map.fits.gz"
@@ -66,8 +67,11 @@ def load_parameters(sim: lbs.Simulation) -> Parameters:
         output_nside=planet_params["output_nside"],
         output_map_file_name=sim.base_path / "map.fits.gz",
         output_table_file_name=sim.base_path / "observation_time_table.txt",
-        radius_au=scanning_params.get("radius_au", 0.0),
-        L2_orbital_velocity_rad_s=scanning_params.get("L2_orbital_velocity_rad_s", 0.0),
+        radius_au=scanning_params.get("radius_au", [0.0, 0.0]),
+        L2_orbital_velocity_rad_s=scanning_params.get(
+            "L2_orbital_velocity_rad_s", [0.0, 0.0]
+        ),
+        phase_rad=scanning_params.get("phase", 0.0),
     )
 
 
@@ -172,6 +176,8 @@ of the sky, particularly with respect to the observation of planets.
         ("Km", astropy.units.kilometer),
         ("au", astropy.units.au),
         ("AU", astropy.units.au),
+        ("deg", astropy.units.deg),
+        ("rad", astropy.units.rad),
     ]
 
     def conversion(x, new_unit):
@@ -228,20 +234,22 @@ of the sky, particularly with respect to the observation of planets.
         L2_pos = earth_pos * (
             1.0 + params.earth_L2_distance_km / norm(earth_pos).to("km").value
         )
-
-        # Creating a circular orbit
-        R = conversion(params.radius_au, "au")
-        phi_t = params.L2_orbital_velocity_rad_s * t
+        # Creating a Lissajous orbit
+        R1 = conversion(params.radius_au[0], "au")
+        R2 = conversion(params.radius_au[1], "au")
+        phi1_t = params.L2_orbital_velocity_rad_s[0] * t
+        phi2_t = params.L2_orbital_velocity_rad_s[1] * t
+        phase = conversion(params.phase_rad, "rad")
         orbit_pos = np.array(
             [
-                -R * np.sin(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi_t),
-                R * np.cos(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi_t),
-                R * np.sin(phi_t),
+                -R1 * np.sin(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi1_t),
+                R1 * np.cos(np.arctan(L2_pos[1] / L2_pos[0])) * np.cos(phi1_t),
+                R2 * np.sin(phi2_t + phase),
             ]
         )
         orbit_pos = astropy.units.Quantity(orbit_pos, unit="AU")
 
-        # Move the spacecraft to a circular orbit around L2
+        # Move the spacecraft to a Lissajous orbit around L2
         sat_pos = orbit_pos + L2_pos
 
         # Compute the distance between the spacecraft and the planet
@@ -316,7 +324,7 @@ of the sky, particularly with respect to the observation of planets.
 
         # Create a map showing how the observation time is distributed on
         # the sphere (in the reference frame of the detector)
-        healpy.orthview(time_map_s, title="Time spent observing the source")
+        healpy.orthview(time_map_s, title="Time spent observing the source", unit="s")
 
         if scanning_strategy.spin_rate_hz != 0:
             spin_period_min = 1.0 / (60.0 * scanning_strategy.spin_rate_hz)
