@@ -2,11 +2,10 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-import json
 from pathlib import Path
 from shutil import copyfile
 import sys
-from typing import Dict, Any, List, Union
+from typing import Dict, Any
 
 from tqdm import tqdm
 
@@ -94,8 +93,11 @@ def beamfunc(pixel_theta, fwhm_arcmin, amplitude=1.0):
 
 def calc_beam_solid_angle(fwhm_arcmin):
     π = np.pi
+    maxtheta = 7 * np.deg2rad(fwhm_arcmin / 60.0)
     return (
-        2 * π * integrate.quad(lambda θ: np.sin(θ) * beamfunc(θ, fwhm_arcmin), 0, π)[0]
+        2
+        * π
+        * integrate.quad(lambda θ: np.sin(θ) * beamfunc(θ, fwhm_arcmin), 0, maxtheta)[0]
     )
 
 
@@ -104,7 +106,7 @@ def project_map_north_pole(pixels, width_deg, pixels_per_side=150):
     u = np.linspace(-np.sin(theta_max), +np.sin(theta_max), pixels_per_side)
     v = np.linspace(-np.sin(theta_max), +np.sin(theta_max), pixels_per_side)
     u_grid, v_grid = np.meshgrid(u, v)
-    theta_grid = np.arcsin(np.sqrt(u_grid ** 2 + v_grid ** 2))
+    theta_grid = np.arcsin(np.sqrt(u_grid**2 + v_grid**2))
     phi_grid = np.arctan2(v_grid, u_grid)
     return (
         u_grid,
@@ -215,6 +217,7 @@ noise/optical properties of a detector.
             sed_fn,
             params.detector.bandcenter_ghz - params.detector.bandwidth_ghz / 2,
             params.detector.bandcenter_ghz + params.detector.bandwidth_ghz / 2,
+            epsabs=1e-2,
         )[0]
         / params.detector.bandwidth_ghz
     )
@@ -279,7 +282,7 @@ Integration time | {{ integration_time_s }} s
         * (params.detector.net_ukrts * 1e-6)
         / (
             np.pi
-            * (params.planet_radius_m ** 2)
+            * (params.planet_radius_m**2)
             * planet_temperature_k
             * np.sqrt(sampling_time_s)
         )
@@ -412,4 +415,8 @@ FWHM       | {{"%.3f"|format(fwhm_arcmin)}} ± {{"%.3f"|format(fwhm_err)}} arcmi
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: {} PARAMETER_FILE".format(sys.argv[0]))
+        sys.exit(1)
+
     main(Path(sys.argv[1]))

@@ -1,0 +1,26 @@
+[project]
+name = "litebird-inflight-beam-calibration"
+version = "1.0.0"
+description = "A set of script to simulate the in-flight calibration of the LiteBIRD experiment"
+authors = [{ name = "Maurizio Tomasi", email = "maurizio.tomasi@unimi.it" }]
+requires-python = ">=3.10"
+readme = "README.md"
+license = "GPL-2.0-or-later"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
+dependencies = [
+    "astropy>=5.0",
+    "numpy>=1.26,<2",
+    "litebird-sim>=0.16.0",
+    "matplotlib>=3.6",
+    "tqdm>=4.66",
+    "healpy>=1.16.6",
+    "deprecated>=1.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11",
+]

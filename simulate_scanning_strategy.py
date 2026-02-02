@@ -82,7 +82,7 @@ def norm(vec):
 
 def get_ecliptic_vec(vec):
     "Convert a coordinate in a XYZ vector expressed in the Ecliptic rest frame"
-    return ICRS(vec).transform_to(BarycentricMeanEcliptic).cartesian.get_xyz()
+    return ICRS(vec).transform_to(BarycentricMeanEcliptic()).cartesian.get_xyz()
 
 
 def time_per_radius(time_map_s, angular_radius_rad):
@@ -129,6 +129,10 @@ def read_scanning_strategy(parameters: Dict[str, Any], imo: lbs.Imo, start_time)
 
 
 def main():
+    if len(sys.argv) != 2:
+        print("Usage: {} PARAMETER_FILE".format(sys.argv[0]))
+        sys.exit(1)
+
     warnings.filterwarnings("ignore", category=ErfaWarning)
 
     sim = lbs.Simulation(
@@ -288,10 +292,13 @@ of the sky, particularly with respect to the observation of planets.
         )
         bincount = np.bincount(pixidx, minlength=len(detector_hitmap))
         detector_hitmap += bincount
-        dist_map_m2 += bincount / ((4 * np.pi * (distance_m ** 2)) ** 2)
+        dist_map_m2 += bincount / ((4 * np.pi * (distance_m**2)) ** 2)
 
         pointings = lbs.get_pointings(
-            obs, sim.spin2ecliptic_quats, [detector.quat], instr.bore2spin_quat
+            obs,
+            sim.spin2ecliptic_quats,
+            detector_quats=[detector.quat],
+            bore2spin_quat=instr.bore2spin_quat,
         )[0]
 
         pixidx = healpy.ang2pix(params.output_nside, pointings[:, 0], pointings[:, 1])

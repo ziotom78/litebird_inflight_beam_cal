@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from shutil import copyfile
 import sys
-from typing import Dict, Any, List, Union
 from tools import read_detector
 from tqdm import tqdm
 import litebird_sim as lbs
@@ -139,7 +138,7 @@ def project_map_beam(
     u = np.linspace(extr_inf, extr_sup, pixels_per_side)
     v = np.linspace(extr_inf, extr_sup, pixels_per_side)
     u_grid, v_grid = np.meshgrid(u, v)
-    theta_grid = np.arcsin(np.sqrt(u_grid ** 2 + v_grid ** 2))
+    theta_grid = np.arcsin(np.sqrt(u_grid**2 + v_grid**2))
     phi_grid = np.arctan2(v_grid, u_grid)
     return (
         u_grid,
@@ -204,7 +203,7 @@ def create_uv_plot(
 def create_gamma_plots(
     gamma_map, gamma_error_map, nside, fwhm_arcmin, theta_beam, phi_beam
 ):
-    plot_size_deg =  fwhm_arcmin / 60.0 
+    plot_size_deg = fwhm_arcmin / 60.0
 
     gamma_fig, gamma_ax = plt.subplots()
     create_uv_plot(
@@ -341,7 +340,7 @@ Integration time | {{ integration_time_s }} s
         * (params.detector.net_ukrts * 1e-6)
         / (
             np.pi
-            * (params.planet_radius_m ** 2)
+            * (params.planet_radius_m**2)
             * planet_temperature_k
             * np.sqrt(sampling_time_s)
         )
@@ -446,7 +445,7 @@ white shadow represents the size of the FWHM
 
     figs = []
 
-    for (dataset, name) in [
+    for dataset, name in [
         (fwhm_estimates_arcmin, "FWHM [arcmin]"),
         (ampl_estimates, "AMPL [arcmin]"),
         (ecc_estimates, "ECC"),

@@ -1,0 +1,17 @@
+[simulation]
+base_path = "./simpletest"
+start_time = 2030-01-01T00:00:00
+duration_s = 5.0
+num_of_obs_per_detector = 1
+
+[scanning_strategy]
+spin_sun_angle_rad = 0.0
+spin_boresight_angle_rad = 0.0
+precession_period_min = 0.0
+spin_rate_rpm = 0.0
+
+[planet_scanning]
+spin2ecl_delta_time_s = 1.0
+planet_name = "sun"
+output_nside = 1024
+sampling_rate_hz = 1.0
